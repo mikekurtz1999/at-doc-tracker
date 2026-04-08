@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AT Doc Tracker</title>
+    <style>
+        :root {
+            --green: #1D9E75;
+            --green-light: #E1F5EE;
+            --red: #E24B4A;
+            --red-light: #FCEBEB;
+            --amber: #BA7517;
+            --amber-light: #FAEEDA;
+            --dark: #2c3e50;
+            --muted: #7f8c8d;
+            --light: #f4f7f6;
+            --white: #ffffff;
+            --border: #e0e0e0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            padding-bottom: 80px;
+        }
+
+        /* NAV */
+        .nav {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-title { font-size: 1.1rem; font-weight: 600; }
+        .nav-date { font-size: 0.8rem; color: var(--muted); }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+        .tab.active {
+            color: var(--green);
+            border-bottom-color: var(--green);
+        }
+
+        /* VIEWS */
+        .view { display: none; padding: 16px; }
+        .view.active { display: block; }
+
+        /* CARDS */
+        .card {
+            background: var(--white);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .encounter-card {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .encounter-card.undoc {
+            border-left: 4px solid var(--red);
+        }
+        .encounter-card.documented {
+            border-left: 4px solid var(--green);
+            opacity: 0.75;
+        }
+
+        .check-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--white);
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+        .check-btn.checked {
+            background: var(--green);
+            border-color: var(--green);
+            color: white;
+        }
+
+        .encounter-info { flex: 1; }
+        .encounter-athlete { font-weight: 600; font-size: 0.95rem; }
+        .encounter-type {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 3px 0;
+        }
+        .encounter-note { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+        .encounter-time { font-size: 0.75rem; color: var(--muted); text-align: right; flex-shrink: 0; }
+
+        /* ENCOUNTER TYPE COLORS */
+        .type-evaluation { background: #E6F1FB; color: #185FA5; }
+        .type-treatment { background: var(--green-light); color: #0F6E56; }
+        .type-wound { background: #FBEAF0; color: #993556; }
+        .type-concussion { background: var(--amber-light); color: var(--amber); }
+        .type-referral { background: #EEEDFE; color: #534AB7; }
+        .type-clearance { background: #EAF3DE; color: #3B6D11; }
+        .type-incident { background: var(--red-light); color: #A32D2D; }
+
+        /* SECTION LABELS */
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin: 16px 0 8px;
+        }
+
+        /* EMPTY STATE */
+        .empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        /* SUMMARY BAR */
+        .summary-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .summary-tile {
+            background: var(--white);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            padding: 12px;
+            text-align: center;
+        }
+        .summary-tile-label { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; }
+        .summary-tile-value { font-size: 1.4rem; font-weight: 700; }
+        .val-total { color: var(--dark); }
+        .val-pending { color: var(--red); }
+        .val-done { color: var(--green); }
+
+        /* FORM */
+        .form-group { margin-bottom: 14px; }
+        .form-label { font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-bottom: 5px; display: block; }
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: var(--white);
+            color: var(--dark);
+            appearance: none;
+        }
+        .form-input:focus { outline: none; border-color: var(--green); }
+
+        /* ROSTER AUTOCOMPLETE */
+        .autocomplete-wrap { position: relative; }
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            z-index: 50;
+            max-height: 180px;
+            overflow-y: auto;
+            display: none;
+        }
+        .autocomplete-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover { background: var(--light); }
+
+        /* BUTTONS */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: var(--green);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-primary:active { opacity: 0.85; }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            background: var(--white);
+            color: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-secondary:active { opacity: 0.75; }
+
+        .btn-danger {
+            padding: 6px 12px;
+            background: var(--red-light);
+            color: var(--red);
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        /* ROSTER LIST */
+        .roster-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .roster-item:last-child { border-bottom: none; }
+        .roster-name { font-weight: 500; font-size: 0.95rem; }
+        .roster-sport { font-size: 0.8rem; color: var(--muted); }
+
+        /* HISTORY */
+        .history-day { margin-bottom: 16px; }
+        .history-day-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* EMAIL BTN */
+        .email-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 13px;
+            background: var(--amber-light);
+            color: var(--amber);
+            border: 1px solid #EF9F27;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+
+        /* TOAST */
+        .toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 200;
+            white-space: nowrap;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div class="nav">
+    <div>
+        <div class="nav-title">AT Doc Tracker</div>
+        <div class="nav-date" id="navDate"></div>
+    </div>
+</div>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('today')">Today</div>
+    <div class="tab" onclick="switchTab('add')">+ Add</div>
+    <div class="tab" onclick="switchTab('history')">History</div>
+    <div class="tab" onclick="switchTab('roster')">Roster</div>
+</div>
+
+<!-- TODAY VIEW -->
+<div id="view-today" class="view active">
+    <div class="summary-bar">
+        <div class="summary-tile">
+            <div class="summary-tile-label">Total</div>
+            <div class="summary-tile-value val-total" id="totalCount">0</div>
+        </div>
+        <div class="summary-tile">
+            <div class="summary-tile-label">Pending</div>
+            <div class="summary-tile-value val-pending" id="pendingCount">0</div>
+        </div>
+        <div class="summary-tile">
+            <div class="summary-tile-label">Done</div>
+            <div class="summary-tile-value val-done" id="doneCount">0</div>
+        </div>
+    </div>
+
+    <button class="email-btn" onclick="sendSummaryNow()">&#9993; Send Summary Now</button>
+
+    <div id="todayList"></div>
+</div>
+
+<!-- ADD VIEW -->
+<div id="view-add" class="view">
+    <div class="card" style="padding: 16px;">
+        <div class="form-group">
+            <label class="form-label">Athlete Name</label>
+            <div class="autocomplete-wrap">
+                <input class="form-input" id="athleteInput" type="text" placeholder="Search roster or type name..." oninput="filterRoster(this.value)" autocomplete="off">
+                <div class="autocomplete-list" id="autocompleteList"></div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Encounter Type</label>
+            <select class="form-input" id="encounterType">
+                <option value="">Select type...</option>
+                <option value="Evaluation">Evaluation</option>
+                <option value="Treatment">Treatment</option>
+                <option value="Wound Care">Wound Care</option>
+                <option value="Concussion RTP">Concussion RTP</option>
+                <option value="Referral">Referral</option>
+                <option value="Clearance">Clearance</option>
+                <option value="Incident Report">Incident Report</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Quick Note (optional)</label>
+            <textarea class="form-input" id="encounterNote" rows="3" placeholder="e.g. R ankle sprain, ice + compression, RTP tomorrow..."></textarea>
+        </div>
+
+        <button class="btn-primary" onclick="logEncounter()">Log Encounter</button>
+    </div>
+</div>
+
+<!-- HISTORY VIEW -->
+<div id="view-history" class="view">
+    <div id="historyList"></div>
+</div>
+
+<!-- ROSTER VIEW -->
+<div id="view-roster" class="view">
+    <div class="card" style="padding: 16px; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">Athlete Name</label>
+            <input class="form-input" id="rosterName" type="text" placeholder="Full name">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Sport</label>
+            <input class="form-input" id="rosterSport" type="text" placeholder="e.g. Football, Soccer...">
+        </div>
+        <button class="btn-primary" onclick="addToRoster()">Add to Roster</button>
+    </div>
+    <div class="card" id="rosterList"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxc_O4HFCAVvpxTXz3utchz7Y-kNI3RQ2R8cTYXHazv4st6bHdCe4bpVfx96UVflb9FGw/exec";
+
+    let encounters = JSON.parse(localStorage.getItem('encounters')) || [];
+    let roster = JSON.parse(localStorage.getItem('roster')) || [];
+
+    const TYPE_CLASSES = {
+        "Evaluation": "type-evaluation",
+        "Treatment": "type-treatment",
+        "Wound Care": "type-wound",
+        "Concussion RTP": "type-concussion",
+        "Referral": "type-referral",
+        "Clearance": "type-clearance",
+        "Incident Report": "type-incident"
+    };
+
+    function todayStr() {
+        return new Date().toLocaleDateString();
+    }
+
+    function init() {
+        document.getElementById('navDate').textContent = new Date().toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
+        renderToday();
+        renderHistory();
+        renderRoster();
+    }
+
+    function switchTab(name) {
+        document.querySelectorAll('.tab').forEach((t, i) => {
+            t.classList.toggle('active', ['today','add','history','roster'][i] === name);
+        });
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-' + name).classList.add('active');
+        if (name === 'today') renderToday();
+        if (name === 'history') renderHistory();
+        if (name === 'roster') renderRoster();
+    }
+
+    function renderToday() {
+        const today = todayStr();
+        const todayEnc = encounters.filter(e => e.date === today);
+        const pending = todayEnc.filter(e => !e.documented);
+        const done = todayEnc.filter(e => e.documented);
+
+        document.getElementById('totalCount').textContent = todayEnc.length;
+        document.getElementById('pendingCount').textContent = pending.length;
+        document.getElementById('doneCount').textContent = done.length;
+
+        const list = document.getElementById('todayList');
+
+        if (todayEnc.length === 0) {
+            list.innerHTML = '<div class="empty">No encounters logged today.<br>Tap + Add to get started.</div>';
+            return;
+        }
+
+        let html = '';
+
+        if (pending.length > 0) {
+            html += '<div class="section-label">Needs Documentation</div>';
+            pending.forEach(enc => { html += encounterCardHTML(enc); });
+        }
+
+        if (done.length > 0) {
+            html += '<div class="section-label">Documented</div>';
+            done.forEach(enc => { html += encounterCardHTML(enc); });
+        }
+
+        list.innerHTML = html;
+    }
+
+    function encounterCardHTML(enc) {
+        const typeClass = TYPE_CLASSES[enc.encounterType] || '';
+        const cardClass = enc.documented ? 'documented' : 'undoc';
+        const checkClass = enc.documented ? 'checked' : '';
+        const checkMark = enc.documented ? '&#10003;' : '';
+        return `
+            <div class="card">
+                <div class="encounter-card ${cardClass}">
+                    <button class="check-btn ${checkClass}" onclick="toggleDocumented('${enc.timestamp}')">${checkMark}</button>
+                    <div class="encounter-info">
+                        <div class="encounter-athlete">${enc.athlete}</div>
+                        <span class="encounter-type ${typeClass}">${enc.encounterType}</span>
+                        ${enc.note ? `<div class="encounter-note">${enc.note}</div>` : ''}
+                    </div>
+                    <div class="encounter-time">${enc.time}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function toggleDocumented(timestamp) {
+        const idx = encounters.findIndex(e => e.timestamp === timestamp);
+        if (idx === -1) return;
+        encounters[idx].documented = !encounters[idx].documented;
+        localStorage.setItem('encounters', JSON.stringify(encounters));
+
+        if (encounters[idx].documented) {
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event: 'markDocumented',
+                    timestamp: encounters[idx].timestamp,
+                    athlete: encounters[idx].athlete
+                })
+            });
+        }
+
+        renderToday();
+        showToast(encounters[idx].documented ? 'Marked as documented' : 'Marked as pending');
+    }
+
+    function logEncounter() {
+        const athlete = document.getElementById('athleteInput').value.trim();
+        const encounterType = document.getElementById('encounterType').value;
+        const note = document.getElementById('encounterNote').value.trim();
+
+        if (!athlete) { showToast('Please enter an athlete name'); return; }
+        if (!encounterType) { showToast('Please select an encounter type'); return; }
+
+        const now = new Date();
+        const enc = {
+            timestamp: now.toISOString(),
+            date: now.toLocaleDateString(),
+            time: now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}),
+            athlete,
+            encounterType,
+            note,
+            documented: false
+        };
+
+        encounters.unshift(enc);
+        localStorage.setItem('encounters', JSON.stringify(encounters));
+
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event: 'logEncounter',
+                athlete: enc.athlete,
+                encounterType: enc.encounterType,
+                note: enc.note
+            })
+        });
+
+        document.getElementById('athleteInput').value = '';
+        document.getElementById('encounterType').value = '';
+        document.getElementById('encounterNote').value = '';
+        document.getElementById('autocompleteList').style.display = 'none';
+
+        showToast('Encounter logged');
+        switchTab('today');
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        const today = todayStr();
+        const past = encounters.filter(e => e.date !== today);
+
+        if (past.length === 0) {
+            list.innerHTML = '<div class="empty">No past encounters yet.</div>';
+            return;
+        }
+
+        const byDate = {};
+        past.forEach(e => {
+            if (!byDate[e.date]) byDate[e.date] = [];
+            byDate[e.date].push(e);
+        });
+
+        let html = '';
+        Object.keys(byDate).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
+            html += `<div class="history-day">
+                <div class="history-day-label">${date}</div>`;
+            byDate[date].forEach(enc => { html += encounterCardHTML(enc); });
+            html += '</div>';
+        });
+
+        list.innerHTML = html;
+    }
+
+    function renderRoster() {
+        const list = document.getElementById('rosterList');
+        if (roster.length === 0) {
+            list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.9rem;">No athletes on roster yet.</div>';
+            return;
+        }
+        list.innerHTML = roster.map((a, i) => `
+            <div class="roster-item">
+                <div>
+                    <div class="roster-name">${a.name}</div>
+                    <div class="roster-sport">${a.sport}</div>
+                </div>
+                <button class="btn-danger" onclick="removeFromRoster(${i})">Remove</button>
+            </div>
+        `).join('');
+    }
+
+    function addToRoster() {
+        const name = document.getElementById('rosterName').value.trim();
+        const sport = document.getElementById('rosterSport').value.trim();
+        if (!name) { showToast('Please enter a name'); return; }
+        roster.push({ name, sport: sport || 'Unassigned' });
+        roster.sort((a, b) => a.name.localeCompare(b.name));
+        localStorage.setItem('roster', JSON.stringify(roster));
+        document.getElementById('rosterName').value = '';
+        document.getElementById('rosterSport').value = '';
+        renderRoster();
+        showToast(name + ' added to roster');
+    }
+
+    function removeFromRoster(idx) {
+        roster.splice(idx, 1);
+        localStorage.setItem('roster', JSON.stringify(roster));
+        renderRoster();
+        showToast('Removed from roster');
+    }
+
+    function filterRoster(val) {
+        const list = document.getElementById('autocompleteList');
+        if (!val) { list.style.display = 'none'; return; }
+        const matches = roster.filter(a => a.name.toLowerCase().includes(val.toLowerCase()));
+        if (matches.length === 0) { list.style.display = 'none'; return; }
+        list.innerHTML = matches.map(a => `
+            <div class="autocomplete-item" onclick="selectAthlete('${a.name}')">${a.name} <span style="color:var(--muted);font-size:0.8rem;">${a.sport}</span></div>
+        `).join('');
+        list.style.display = 'block';
+    }
+
+    function selectAthlete(name) {
+        document.getElementById('athleteInput').value = name;
+        document.getElementById('autocompleteList').style.display = 'none';
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.autocomplete-wrap')) {
+            document.getElementById('autocompleteList').style.display = 'none';
+        }
+    });
+
+    async function sendSummaryNow() {
+        showToast('Sending summary email...');
+        try {
+            await fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'sendSummary' })
+            });
+            showToast('Summary sent to your email');
+        } catch (err) {
+            showToast('Error sending email');
+        }
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    init();
+</script>
+</body>
+</html>
