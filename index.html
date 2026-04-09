@@ -504,9 +504,10 @@
 
         if (encounters[idx].documented) {
     var url = WEB_APP_URL 
-        + "?action=markDocumented"
-        + "&athlete=" + encodeURIComponent(encounters[idx].athlete)
-        + "&encounterType=" + encodeURIComponent(encounters[idx].encounterType);
+    + "?action=markDocumented"
+    + "&athlete=" + encodeURIComponent(encounters[idx].athlete)
+    + "&encounterType=" + encodeURIComponent(encounters[idx].encounterType)
+    + "&date=" + encodeURIComponent(encounters[idx].date);
     fetch(url).catch(err => console.log(err));
 }
 
