@@ -1048,7 +1048,12 @@ function pushRosterToSheets() {
 
     init();
 setTimeout(syncRosterFromSheets, 2000);
-setTimeout(syncTodayEncounters, 3000);
+if (!sessionStorage.getItem('encountersSynced')) {
+    setTimeout(function() {
+        syncTodayEncounters();
+        sessionStorage.setItem('encountersSynced', '1');
+    }, 3000);
+}
 </script>
 </body>
 </html>
