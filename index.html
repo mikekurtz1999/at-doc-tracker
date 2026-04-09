@@ -664,7 +664,7 @@ async function syncTodayEncounters() {
         if (!sheetsEncs || sheetsEncs.length === 0) return;
 
         const today = new Date().toLocaleDateString();
-        const localTimestamps = new Set(encounters.map(e => e.timestamp));
+        let changed = false;
 
         sheetsEncs.forEach(function(enc) {
             const alreadyExists = encounters.some(function(e) {
@@ -674,8 +674,20 @@ async function syncTodayEncounters() {
             });
             if (!alreadyExists) {
                 encounters.unshift(enc);
+                changed = true;
             }
         });
+
+        if (changed) {
+            localStorage.setItem('at_encounters', JSON.stringify(encounters));
+            renderRoster();
+            renderDocs();
+            updateBadge();
+        }
+    } catch(err) {
+        console.log('Encounter sync failed:', err);
+    }
+}
 
         encounters = encounters.filter(function(e) {
             if (e.date !== today) return true;
