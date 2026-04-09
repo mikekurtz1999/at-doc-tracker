@@ -655,6 +655,31 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxc_O4HFCAVvpxTXz3utchz7Y-kNI3RQ2R8cTYXHazv4st6bHdCe4bpVfx96UVflb9FGw/exec";
 
     let roster = JSON.parse(localStorage.getItem('at_roster')) || [];
+
+async function syncRosterFromSheets() {
+    try {
+        const url = WEB_APP_URL + "?action=getRoster";
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.length > 0) {
+            roster = data;
+            localStorage.setItem('at_roster', JSON.stringify(roster));
+            renderRoster();
+            renderManage();
+        }
+    } catch(err) {
+        console.log('Roster sync failed, using local:', err);
+    }
+}
+
+function pushRosterToSheets() {
+    fetch(WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ event: 'saveRoster', roster: roster })
+    });
+}
     let encounters = JSON.parse(localStorage.getItem('at_encounters')) || [];
     let selectedAthlete = null;
     let selectedPain = null;
@@ -920,7 +945,7 @@
             showToast('Athlete already on roster'); return;
         }
         roster.push({ name, injury: injury || '' });
-        localStorage.setItem('at_roster', JSON.stringify(roster));
+        pushRosterToSheets();
         document.getElementById('newName').value = '';
         document.getElementById('newInjury').value = '';
         renderManage();
@@ -931,7 +956,7 @@
     function removeAthlete(idx) {
         const name = roster[idx].name;
         roster.splice(idx, 1);
-        localStorage.setItem('at_roster', JSON.stringify(roster));
+        pushRosterToSheets();
         renderManage();
         renderRoster();
         showToast(name + ' removed');
@@ -971,6 +996,7 @@
     }
 
     init();
+syncRosterFromSheets();
 </script>
 </body>
 </html>
