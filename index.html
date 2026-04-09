@@ -659,8 +659,9 @@
 async function syncRosterFromSheets() {
     try {
         const url = WEB_APP_URL + "?action=getRoster";
-        const res = await fetch(url);
-        const data = await res.json();
+        const res = await fetch(url, {redirect: 'follow'});
+        const text = await res.text();
+        const data = JSON.parse(text);
         if (data && data.length > 0) {
             roster = data;
             localStorage.setItem('at_roster', JSON.stringify(roster));
@@ -668,7 +669,7 @@ async function syncRosterFromSheets() {
             renderManage();
         }
     } catch(err) {
-        console.log('Roster sync failed, using local:', err);
+        console.log('Roster sync failed:', err);
     }
 }
 
