@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AT Doc Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green: #1a9e6e;
+            --green-soft: #e8f7f1;
+            --red: #e0453f;
+            --red-soft: #fdf0ef;
+            --amber: #d4870a;
+            --amber-soft: #fef5e7;
+            --blue: #2563b8;
+            --blue-soft: #eff4fd;
+            --ink: #1a1d23;
+            --ink-mid: #4a4f5a;
+            --ink-light: #8a909e;
+            --surface: #f5f6f8;
+            --card: #ffffff;
+            --border: #e8eaee;
+            --border-strong: #d0d4dc;
+            --accent: #1a9e6e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--surface);
+            color: var(--ink);
+            min-height: 100vh;
+            padding-bottom: 72px;
+        }
+
+        .header {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 20px 12px;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+        .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        .header-title { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+        .header-date { font-size: 12px; color: var(--ink-light); margin-top: 2px; }
+        .header-badge {
+            background: var(--red-soft);
+            color: var(--red);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: none;
+        }
+        .header-badge.visible { display: block; }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            display: flex;
+            z-index: 90;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0 8px;
+            cursor: pointer;
+            color: var(--ink-light);
+            font-size: 10px;
+            font-weight: 500;
+            gap: 4px;
+            transition: color 0.15s;
+        }
+        .nav-item.active { color: var(--accent); }
+        .nav-icon { font-size: 20px; line-height: 1; }
+        .nav-dot {
+            width: 5px; height: 5px;
+            background: var(--red);
+            border-radius: 50%;
+            position: absolute;
+            top: 8px;
+            margin-left: 14px;
+            display: none;
+        }
+        .nav-dot.visible { display: block; }
+
+        .view { display: none; padding: 16px; }
+        .view.active { display: block; }
+
+        .search-wrap { position: relative; margin-bottom: 14px; }
+        .search-input {
+            width: 100%;
+            padding: 11px 16px 11px 40px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--ink);
+        }
+        .search-input:focus { outline: none; border-color: var(--accent); }
+        .search-icon {
+            position: absolute;
+            left: 13px; top: 50%;
+            transform: translateY(-50%);
+            color: var(--ink-light);
+            font-size: 16px;
+        }
+
+        .roster-grid { display: flex; flex-direction: column; gap: 8px; }
+        .athlete-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+        .athlete-card:active { transform: scale(0.98); background: var(--surface); }
+        .athlete-card.seen-today { border-color: var(--green); }
+        .athlete-card.seen-today::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: var(--green);
+            border-radius: 14px 0 0 14px;
+        }
+
+        .athlete-avatar {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--ink-mid);
+            flex-shrink: 0;
+            font-family: 'DM Mono', monospace;
+        }
+
+        .athlete-info { flex: 1; min-width: 0; }
+        .athlete-name { font-size: 15px; font-weight: 600; }
+        .athlete-injury {
+            font-size: 12px;
+            color: var(--ink-light);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .seen-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: var(--green-soft);
+            color: var(--green);
+            flex-shrink: 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--ink-light);
+        }
+        .empty-icon { font-size: 40px; margin-bottom: 12px; }
+        .empty-title { font-size: 16px; font-weight: 600; color: var(--ink-mid); margin-bottom: 6px; }
+        .empty-sub { font-size: 14px; }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 200;
+            display: none;
+            align-items: flex-end;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .modal-sheet {
+            background: var(--card);
+            border-radius: 24px 24px 0 0;
+            width: 100%;
+            max-height: 92vh;
+            overflow-y: auto;
+            padding: 0 0 40px;
+            animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-handle {
+            width: 36px; height: 4px;
+            background: var(--border-strong);
+            border-radius: 2px;
+            margin: 12px auto 0;
+        }
+
+        .modal-header {
+            padding: 16px 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-athlete-name { font-size: 20px; font-weight: 600; }
+        .modal-athlete-injury { font-size: 13px; color: var(--ink-light); margin-top: 2px; }
+        .modal-close {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ink-mid);
+        }
+
+        .modal-body { padding: 20px; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--ink-light);
+            margin-bottom: 8px;
+            display: block;
+        }
+        .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--ink);
+            appearance: none;
+        }
+        .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--card);
+        }
+        .form-textarea { resize: none; line-height: 1.5; }
+
+        .pain-scale {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+        }
+        .pain-btn {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: var(--surface);
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'DM Mono', monospace;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
+            color: var(--ink-mid);
+        }
+        .pain-btn:active { transform: scale(0.9); }
+        .pain-btn.selected { border-color: transparent; color: white; }
+        .pain-btn[data-val="1"].selected, .pain-btn[data-val="2"].selected { background: #1a9e6e; }
+        .pain-btn[data-val="3"].selected, .pain-btn[data-val="4"].selected { background: #5bb85b; }
+        .pain-btn[data-val="5"].selected { background: #d4c20a; color: var(--ink); }
+        .pain-btn[data-val="6"].selected { background: #f0a500; color: var(--ink); }
+        .pain-btn[data-val="7"].selected { background: #e07820; }
+        .pain-btn[data-val="8"].selected { background: #d44020; }
+        .pain-btn[data-val="9"].selected, .pain-btn[data-val="10"].selected { background: #c02020; }
+
+        .pain-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 10px;
+            color: var(--ink-light);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            letter-spacing: -0.2px;
+        }
+        .btn-submit:active { opacity: 0.85; transform: scale(0.99); }
+
+        .summary-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .stat-tile {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px;
+            text-align: center;
+        }
+        .stat-label { font-size: 11px; color: var(--ink-light); font-weight: 500; margin-bottom: 4px; }
+        .stat-val { font-size: 26px; font-weight: 600; font-family: 'DM Mono', monospace; }
+        .val-total { color: var(--ink); }
+        .val-pending { color: var(--red); }
+        .val-done { color: var(--green); }
+
+        .email-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--amber-soft);
+            color: var(--amber);
+            border: 1px solid #f0c060;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--ink-light);
+            margin: 14px 0 8px;
+        }
+
+        .doc-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            gap: 12px;
+        }
+        .doc-card.pending { border-left: 3px solid var(--red); }
+        .doc-card.done { border-left: 3px solid var(--green); opacity: 0.7; }
+
+        .check-circle {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            border: 2px solid var(--border-strong);
+            background: var(--card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+        .check-circle.checked {
+            background: var(--green);
+            border-color: var(--green);
+            color: white;
+        }
+
+        .doc-info { flex: 1; min-width: 0; }
+        .doc-athlete { font-size: 15px; font-weight: 600; }
+        .doc-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+        .doc-type {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .doc-note { font-size: 12px; color: var(--ink-light); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .doc-time { font-size: 12px; color: var(--ink-light); flex-shrink: 0; }
+
+        .t-eval { background: var(--blue-soft); color: var(--blue); }
+        .t-treat { background: var(--green-soft); color: var(--green); }
+        .t-wound { background: #fbeaf0; color: #993556; }
+        .t-concuss { background: var(--amber-soft); color: var(--amber); }
+        .t-referral { background: #eeedfe; color: #534ab7; }
+        .t-clear { background: #eaf3de; color: #3b6d11; }
+        .t-incident { background: var(--red-soft); color: var(--red); }
+
+        .history-day { margin-bottom: 20px; }
+        .history-day-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink-mid);
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .manage-form {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .manage-form-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--ink);
+        }
+        .form-input:focus { outline: none; border-color: var(--accent); background: var(--card); }
+
+        .btn-add {
+            width: 100%;
+            padding: 13px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .manage-list {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .manage-item {
+            display: flex;
+            align-items: center;
+            padding: 13px 16px;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+        .manage-item:last-child { border-bottom: none; }
+        .manage-item-info { flex: 1; }
+        .manage-item-name { font-size: 15px; font-weight: 500; }
+        .manage-item-injury { font-size: 12px; color: var(--ink-light); margin-top: 1px; }
+        .btn-remove {
+            padding: 6px 12px;
+            background: var(--red-soft);
+            color: var(--red);
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 84px;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: var(--ink);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.25s;
+            z-index: 300;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-top">
+        <div>
+            <div class="header-title">AT Doc Tracker</div>
+            <div class="header-date" id="headerDate"></div>
+        </div>
+        <div class="header-badge" id="pendingBadge"></div>
+    </div>
+</div>
+
+<div id="view-roster" class="view active">
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <div class="search-wrap" style="flex:1;margin-bottom:0;">
+            <span class="search-icon">&#128269;</span>
+            <input class="search-input" type="text" placeholder="Search athletes..." oninput="filterRoster(this.value)" id="searchInput">
+        </div>
+        <button onclick="switchView('manage')" style="width:44px;height:44px;border-radius:12px;background:var(--accent);border:none;color:white;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&#43;</button>
+    </div>
+    <div class="roster-grid" id="rosterGrid"></div>
+</div>
+
+<div id="view-docs" class="view">
+    <div class="summary-row">
+        <div class="stat-tile"><div class="stat-label">Total</div><div class="stat-val val-total" id="statTotal">0</div></div>
+        <div class="stat-tile"><div class="stat-label">Pending</div><div class="stat-val val-pending" id="statPending">0</div></div>
+        <div class="stat-tile"><div class="stat-label">Done</div><div class="stat-val val-done" id="statDone">0</div></div>
+    </div>
+    <button class="email-btn" onclick="sendSummaryNow()">&#9993; Send Summary Email</button>
+    <div id="docsList"></div>
+</div>
+
+<div id="view-history" class="view">
+    <div id="historyList"></div>
+</div>
+
+<div id="view-manage" class="view">
+    <div class="manage-form">
+        <div class="manage-form-title">Add Athlete</div>
+        <div class="form-group">
+            <label class="form-label">Name</label>
+            <input class="form-input" id="newName" type="text" placeholder="First Last">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Current Injury / Condition</label>
+            <input class="form-input" id="newInjury" type="text" placeholder="e.g. R ankle sprain, concussion protocol...">
+        </div>
+        <button class="btn-add" onclick="addAthlete()">Add to Roster</button>
+    </div>
+    <div class="manage-list" id="manageList"></div>
+</div>
+
+<nav class="bottom-nav">
+    <div class="nav-item active" onclick="switchView('roster')" id="nav-roster">
+        <span class="nav-icon">&#128101;</span>
+        <span>Roster</span>
+    </div>
+    <div class="nav-item" onclick="switchView('docs')" id="nav-docs" style="position:relative;">
+        <span class="nav-dot" id="navDot"></span>
+        <span class="nav-icon">&#9989;</span>
+        <span>Docs</span>
+    </div>
+    <div class="nav-item" onclick="switchView('history')" id="nav-history">
+        <span class="nav-icon">&#128197;</span>
+        <span>History</span>
+    </div>
+    <div class="nav-item" onclick="switchView('manage')" id="nav-manage">
+        <span class="nav-icon">&#9881;</span>
+        <span>Manage</span>
+    </div>
+</nav>
+
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <div>
+                <div class="modal-athlete-name" id="modalName"></div>
+                <div class="modal-athlete-injury" id="modalInjury"></div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">&#10005;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Encounter Type</label>
+                <select class="form-select" id="modalType">
+                    <option value="">Select type...</option>
+                    <option value="Evaluation">Evaluation</option>
+                    <option value="Treatment">Treatment</option>
+                    <option value="Wound Care">Wound Care</option>
+                    <option value="Concussion RTP">Concussion RTP</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Clearance">Clearance</option>
+                    <option value="Incident Report">Incident Report</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Pain Scale <span id="painValLabel" style="color:var(--ink-mid);text-transform:none;font-weight:400;font-size:12px;"></span></label>
+                <div class="pain-scale" id="painScale"></div>
+                <div class="pain-labels"><span>No pain</span><span>Worst pain</span></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Quick Note</label>
+                <textarea class="form-textarea" id="modalNote" rows="3" placeholder="e.g. R ankle sprain, ice + compression, RTP tomorrow..."></textarea>
+            </div>
+            <button class="btn-submit" onclick="submitEncounter()">Log Encounter</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxc_O4HFCAVvpxTXz3utchz7Y-kNI3RQ2R8cTYXHazv4st6bHdCe4bpVfx96UVflb9FGw/exec";
+
+    let roster = JSON.parse(localStorage.getItem('at_roster')) || [];
+    let encounters = JSON.parse(localStorage.getItem('at_encounters')) || [];
+    let selectedAthlete = null;
+    let selectedPain = null;
+
+    const TYPE_CLASS = {
+        "Evaluation": "t-eval",
+        "Treatment": "t-treat",
+        "Wound Care": "t-wound",
+        "Concussion RTP": "t-concuss",
+        "Referral": "t-referral",
+        "Clearance": "t-clear",
+        "Incident Report": "t-incident"
+    };
+
+    function todayStr() {
+        return new Date().toLocaleDateString();
+    }
+
+    function initials(name) {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    function init() {
+        document.getElementById('headerDate').textContent = new Date().toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
+        buildPainScale();
+        renderRoster();
+        renderDocs();
+        renderHistory();
+        renderManage();
+        updateBadge();
+    }
+
+    function buildPainScale() {
+        const scale = document.getElementById('painScale');
+        scale.innerHTML = Array.from({length:10}, (_,i) => {
+            const v = i + 1;
+            return `<button class="pain-btn" data-val="${v}" onclick="selectPain(${v})">${v}</button>`;
+        }).join('');
+    }
+
+    function selectPain(val) {
+        selectedPain = val;
+        document.querySelectorAll('.pain-btn').forEach(b => {
+            b.classList.toggle('selected', parseInt(b.dataset.val) === val);
+        });
+        document.getElementById('painValLabel').textContent = '— ' + val + '/10';
+    }
+
+    function switchView(name) {
+        ['roster','docs','history','manage'].forEach(v => {
+            document.getElementById('view-' + v).classList.toggle('active', v === name);
+            document.getElementById('nav-' + v).classList.toggle('active', v === name);
+        });
+        if (name === 'docs') renderDocs();
+        if (name === 'history') renderHistory();
+        if (name === 'manage') renderManage();
+    }
+
+    function filterRoster(val) {
+        renderRoster(val);
+    }
+
+    function renderRoster(filter) {
+        filter = filter || '';
+        const grid = document.getElementById('rosterGrid');
+        const today = todayStr();
+        let list = roster.slice().sort(function(a,b) { return a.name.localeCompare(b.name); });
+        if (filter) list = list.filter(function(a) { return a.name.toLowerCase().indexOf(filter.toLowerCase()) !== -1; });
+
+        if (list.length === 0) {
+            grid.innerHTML = filter
+                ? '<div class="empty-state"><div class="empty-sub">No athletes match your search.</div></div>'
+                : '<div class="empty-state"><div class="empty-icon">&#128101;</div><div class="empty-title">Roster is empty</div><div class="empty-sub">Tap the + button to add athletes.</div></div>';
+            return;
+        }
+
+        const seenToday = new Set(encounters.filter(function(e) { return e.date === today; }).map(function(e) { return e.athlete; }));
+
+        grid.innerHTML = list.map(function(a) {
+            const seen = seenToday.has(a.name);
+            const safeName = a.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            return '<div class="athlete-card ' + (seen ? 'seen-today' : '') + '" onclick="openModal(\'' + safeName + '\')">'
+                + '<div class="athlete-avatar">' + initials(a.name) + '</div>'
+                + '<div class="athlete-info">'
+                + '<div class="athlete-name">' + a.name + '</div>'
+                + '<div class="athlete-injury">' + (a.injury || 'No active injury noted') + '</div>'
+                + '</div>'
+                + (seen ? '<span class="seen-badge">Seen</span>' : '')
+                + '</div>';
+        }).join('');
+    }
+
+    function openModal(name) {
+        const athlete = roster.find(function(a) { return a.name === name; });
+        if (!athlete) return;
+        selectedAthlete = athlete;
+        selectedPain = null;
+        document.getElementById('modalName').textContent = athlete.name;
+        document.getElementById('modalInjury').textContent = athlete.injury || '';
+        document.getElementById('modalType').value = '';
+        document.getElementById('modalNote').value = '';
+        document.getElementById('painValLabel').textContent = '';
+        document.querySelectorAll('.pain-btn').forEach(function(b) { b.classList.remove('selected'); });
+        document.getElementById('modalOverlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+        document.body.style.overflow = '';
+        selectedAthlete = null;
+    }
+
+    function handleOverlayClick(e) {
+        if (e.target === document.getElementById('modalOverlay')) closeModal();
+    }
+
+    function submitEncounter() {
+        const type = document.getElementById('modalType').value;
+        const note = document.getElementById('modalNote').value.trim();
+        if (!type) { showToast('Please select an encounter type'); return; }
+
+        const now = new Date();
+        const enc = {
+            timestamp: now.toISOString(),
+            date: now.toLocaleDateString(),
+            time: now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+            athlete: selectedAthlete.name,
+            encounterType: type,
+            pain: selectedPain,
+            note: note,
+            documented: false
+        };
+
+        encounters.unshift(enc);
+        localStorage.setItem('at_encounters', JSON.stringify(encounters));
+
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                event: 'logEncounter',
+                athlete: enc.athlete,
+                encounterType: enc.encounterType,
+                note: (enc.pain ? 'Pain: ' + enc.pain + '/10. ' : '') + enc.note
+            })
+        });
+
+        const name = selectedAthlete.name;
+        closeModal();
+        renderRoster();
+        updateBadge();
+        showToast(name + ' logged');
+    }
+
+    function renderDocs() {
+        const today = todayStr();
+        const todayEnc = encounters.filter(function(e) { return e.date === today; });
+        const pending = todayEnc.filter(function(e) { return !e.documented; });
+        const done = todayEnc.filter(function(e) { return e.documented; });
+
+        document.getElementById('statTotal').textContent = todayEnc.length;
+        document.getElementById('statPending').textContent = pending.length;
+        document.getElementById('statDone').textContent = done.length;
+
+        const list = document.getElementById('docsList');
+        if (todayEnc.length === 0) {
+            list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128203;</div><div class="empty-title">No encounters today</div><div class="empty-sub">Tap an athlete on the roster to log one.</div></div>';
+            return;
+        }
+
+        let html = '';
+        if (pending.length > 0) {
+            html += '<div class="section-label">Needs Documentation</div>';
+            pending.forEach(function(e) { html += docCardHTML(e); });
+        }
+        if (done.length > 0) {
+            html += '<div class="section-label">Documented</div>';
+            done.forEach(function(e) { html += docCardHTML(e); });
+        }
+        list.innerHTML = html;
+    }
+
+    function docCardHTML(enc) {
+        const tc = TYPE_CLASS[enc.encounterType] || '';
+        const cls = enc.documented ? 'done' : 'pending';
+        const checkCls = enc.documented ? 'checked' : '';
+        const ts = encodeURIComponent(enc.timestamp);
+        return '<div class="doc-card ' + cls + '">'
+            + '<div class="check-circle ' + checkCls + '" onclick="toggleDoc(\'' + ts + '\')">' + (enc.documented ? '&#10003;' : '') + '</div>'
+            + '<div class="doc-info">'
+            + '<div class="doc-athlete">' + enc.athlete + '</div>'
+            + '<div class="doc-meta"><span class="doc-type ' + tc + '">' + enc.encounterType + '</span>'
+            + (enc.pain ? '<span style="font-size:11px;color:var(--ink-light);">Pain ' + enc.pain + '/10</span>' : '')
+            + '</div>'
+            + (enc.note ? '<div class="doc-note">' + enc.note + '</div>' : '')
+            + '</div>'
+            + '<div class="doc-time">' + enc.time + '</div>'
+            + '</div>';
+    }
+
+    function toggleDoc(tsEncoded) {
+        const ts = decodeURIComponent(tsEncoded);
+        const idx = encounters.findIndex(function(e) { return e.timestamp === ts; });
+        if (idx === -1) return;
+        encounters[idx].documented = !encounters[idx].documented;
+        localStorage.setItem('at_encounters', JSON.stringify(encounters));
+
+        if (encounters[idx].documented) {
+            var url = WEB_APP_URL
+                + "?action=markDocumented"
+                + "&athlete=" + encodeURIComponent(encounters[idx].athlete)
+                + "&encounterType=" + encodeURIComponent(encounters[idx].encounterType)
+                + "&date=" + encodeURIComponent(encounters[idx].date);
+            fetch(url).catch(function() {});
+        }
+
+        renderDocs();
+        updateBadge();
+        showToast(encounters[idx].documented ? 'Marked as documented' : 'Marked as pending');
+    }
+
+    function renderHistory() {
+        const today = todayStr();
+        const past = encounters.filter(function(e) { return e.date !== today; });
+        const list = document.getElementById('historyList');
+        if (past.length === 0) {
+            list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128197;</div><div class="empty-title">No history yet</div></div>';
+            return;
+        }
+        const byDate = {};
+        past.forEach(function(e) {
+            if (!byDate[e.date]) byDate[e.date] = [];
+            byDate[e.date].push(e);
+        });
+        list.innerHTML = Object.keys(byDate).sort(function(a,b) { return new Date(b)-new Date(a); }).map(function(date) {
+            return '<div class="history-day"><div class="history-day-header">' + date + '</div>'
+                + byDate[date].map(function(e) { return docCardHTML(e); }).join('')
+                + '</div>';
+        }).join('');
+    }
+
+    function renderManage() {
+        const sorted = roster.slice().sort(function(a,b) { return a.name.localeCompare(b.name); });
+        const list = document.getElementById('manageList');
+        if (sorted.length === 0) {
+            list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink-light);font-size:14px;">No athletes added yet.</div>';
+            return;
+        }
+        list.innerHTML = sorted.map(function(a) {
+            const idx = roster.indexOf(a);
+            return '<div class="manage-item">'
+                + '<div class="manage-item-info">'
+                + '<div class="manage-item-name">' + a.name + '</div>'
+                + '<div class="manage-item-injury">' + (a.injury || 'No injury noted') + '</div>'
+                + '</div>'
+                + '<button class="btn-remove" onclick="removeAthlete(' + idx + ')">Remove</button>'
+                + '</div>';
+        }).join('');
+    }
+
+    function addAthlete() {
+        const name = document.getElementById('newName').value.trim();
+        const injury = document.getElementById('newInjury').value.trim();
+        if (!name) { showToast('Please enter a name'); return; }
+        if (roster.find(function(a) { return a.name.toLowerCase() === name.toLowerCase(); })) {
+            showToast('Athlete already on roster'); return;
+        }
+        roster.push({ name: name, injury: injury || '' });
+        localStorage.setItem('at_roster', JSON.stringify(roster));
+        pushRosterToSheets();
+        document.getElementById('newName').value = '';
+        document.getElementById('newInjury').value = '';
+        renderManage();
+        renderRoster();
+        showToast(name + ' added');
+    }
+
+    function removeAthlete(idx) {
+        const name = roster[idx].name;
+        roster.splice(idx, 1);
+        localStorage.setItem('at_roster', JSON.stringify(roster));
+        pushRosterToSheets();
+        renderManage();
+        renderRoster();
+        showToast(name + ' removed');
+    }
+
+    function pushRosterToSheets() {
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ event: 'saveRoster', roster: roster })
+        });
+    }
+
+    async function syncRosterFromSheets() {
+        try {
+            const res = await fetch(WEB_APP_URL + "?action=getRoster", {redirect: 'follow'});
+            const text = await res.text();
+            const data = JSON.parse(text);
+            if (data && data.length > 0) {
+                roster = data;
+                localStorage.setItem('at_roster', JSON.stringify(roster));
+                renderRoster();
+                renderManage();
+            }
+        } catch(err) {
+            console.log('Roster sync failed:', err);
+        }
+    }
+
+    async function syncTodayEncounters() {
+        try {
+            const res = await fetch(WEB_APP_URL + "?action=getTodayEncounters", {redirect: 'follow'});
+            const text = await res.text();
+            const sheetsEncs = JSON.parse(text);
+            if (!sheetsEncs || sheetsEncs.length === 0) return;
+
+            const today = todayStr();
+            let changed = false;
+
+            sheetsEncs.forEach(function(enc) {
+                const alreadyExists = encounters.some(function(e) {
+                    return e.athlete === enc.athlete
+                        && e.encounterType === enc.encounterType
+                        && e.date === today;
+                });
+                if (!alreadyExists) {
+                    encounters.unshift(enc);
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                localStorage.setItem('at_encounters', JSON.stringify(encounters));
+                renderRoster();
+                renderDocs();
+                updateBadge();
+            }
+        } catch(err) {
+            console.log('Encounter sync failed:', err);
+        }
+    }
+
+    function updateBadge() {
+        const today = todayStr();
+        const pending = encounters.filter(function(e) { return e.date === today && !e.documented; }).length;
+        const badge = document.getElementById('pendingBadge');
+        const dot = document.getElementById('navDot');
+        if (pending > 0) {
+            badge.textContent = pending + ' pending';
+            badge.classList.add('visible');
+            dot.classList.add('visible');
+        } else {
+            badge.classList.remove('visible');
+            dot.classList.remove('visible');
+        }
+    }
+
+    async function sendSummaryNow() {
+        showToast('Sending summary...');
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ event: 'sendSummary' })
+        });
+        setTimeout(function() { showToast('Summary sent to your email'); }, 1500);
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(function() { t.classList.remove('show'); }, 2500);
+    }
+
+    init();
+    setTimeout(syncRosterFromSheets, 2000);
+    if (!sessionStorage.getItem('encountersSynced')) {
+        setTimeout(function() {
+            syncTodayEncounters();
+            sessionStorage.setItem('encountersSynced', '1');
+        }, 3000);
+    }
+</script>
+</body>
+</html>
