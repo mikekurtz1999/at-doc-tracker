@@ -655,7 +655,45 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxc_O4HFCAVvpxTXz3utchz7Y-kNI3RQ2R8cTYXHazv4st6bHdCe4bpVfx96UVflb9FGw/exec";
 
     let roster = JSON.parse(localStorage.getItem('at_roster')) || [];
+async function syncTodayEncounters() {
+    try {
+        const url = WEB_APP_URL + "?action=getTodayEncounters";
+        const res = await fetch(url, {redirect: 'follow'});
+        const text = await res.text();
+        const sheetsEncs = JSON.parse(text);
+        if (!sheetsEncs || sheetsEncs.length === 0) return;
 
+        const today = new Date().toLocaleDateString();
+        const localTimestamps = new Set(encounters.map(e => e.timestamp));
+
+        sheetsEncs.forEach(function(enc) {
+            const alreadyExists = encounters.some(function(e) {
+                return e.athlete === enc.athlete &&
+                       e.encounterType === enc.encounterType &&
+                       e.date === today;
+            });
+            if (!alreadyExists) {
+                encounters.unshift(enc);
+            }
+        });
+
+        encounters = encounters.filter(function(e) {
+            if (e.date !== today) return true;
+            const inSheets = sheetsEncs.some(function(s) {
+                return s.athlete === e.athlete &&
+                       s.encounterType === e.encounterType;
+            });
+            return inSheets;
+        });
+
+        localStorage.setItem('at_encounters', JSON.stringify(encounters));
+        renderRoster();
+        renderDocs();
+        updateBadge();
+    } catch(err) {
+        console.log('Encounter sync failed:', err);
+    }
+}
 async function syncRosterFromSheets() {
     try {
         const url = WEB_APP_URL + "?action=getRoster";
@@ -997,7 +1035,8 @@ function pushRosterToSheets() {
     }
 
     init();
-setTimeout(syncRosterFromSheets, 500);
+setTimeout(syncRosterFromSheets, 2000);
+setTimeout(syncTodayEncounters, 3000);
 </script>
 </body>
 </html>
