@@ -1047,12 +1047,12 @@ function pushRosterToSheets() {
     }
 
     init();
-setTimeout(syncRosterFromSheets, 2000);
+setTimeout(syncRosterFromSheets, 500);
 if (!sessionStorage.getItem('encountersSynced')) {
     setTimeout(function() {
         syncTodayEncounters();
         sessionStorage.setItem('encountersSynced', '1');
-    }, 3000);
+    }, 1500);
 }
 </script>
 </body>
